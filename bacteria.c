@@ -1,8 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
-#define G 5
+char** allocate_grid(int *rows, int *cols)
+{
+    char** grid = malloc(sizeof(char*) * (*rows));
+
+    for (int i = 0; i < *rows; i++)
+    {
+        grid[i] = malloc(sizeof(char) * (*cols));
+    }
+
+    return grid;
+}
 
 char** get_grid(char* filename, int* rows, int* cols)
 {
@@ -16,12 +27,7 @@ char** get_grid(char* filename, int* rows, int* cols)
 
     fscanf(f, "%d%d", rows, cols);
 
-    char** grid = malloc(sizeof(char*) * (*rows));
-
-    for (int i = 0; i < *rows; i++)
-    {
-        grid[i] = malloc(sizeof(char) * (*cols));
-    }
+    char** grid = allocate_grid(rows, cols);
 
     for (int i = 0; i < *rows; i++)
     {
@@ -91,15 +97,69 @@ void spawn_bacterium(char** grid, int i, int j)
     grid[i][j] = 'X';
 }
 
-void point_reaction(char** grid, int i, int j, int rows, int cols)
+void update_grid_point(char** grid, char** next_grid, int i, int j, int rows, int cols)
 {
     int nb_bacteria = get_nb_bacteria_around(grid, i, j, rows, cols);
-    if (is_bacteria(grid, i, j) && (nb_bacteria < 2 || nb_bacteria > 3)) bacterium_death(grid, i, j);
-    else if (!is_bacteria(grid, i, j) && nb_bacteria == 3) spawn_bacterium(grid, i, j);
+    if (is_bacteria(grid, i, j)) 
+    {
+        if (nb_bacteria < 2 || nb_bacteria > 3) bacterium_death(next_grid, i, j);
+        else next_grid[i][j] = grid[i][j];
+    }
+    else if (!is_bacteria(grid, i, j)) 
+    {
+        if (nb_bacteria == 3) spawn_bacterium(next_grid, i, j);
+        else next_grid[i][j] = grid[i][j];
+    }
+}
+
+void free_grid(char** grid, int rows)
+{
+    for (int i = 0; i < rows; i++)
+    {
+        free(grid[i]);
+    }
+    
+    free(grid);
+}
+
+void write_to_output_file(char** grid, int rows, int cols, char* filename)
+{
+    FILE *f = fopen(filename, "w");
+
+    if (f == NULL)
+    {
+        fprintf(stderr, "Error opening file");
+        exit(-1);
+    }
+
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            fprintf(f, "%c ", grid[i][j]);
+        }
+        fprintf(f, "\n");
+    }
+
+    if (fclose(f) != 0)
+    {
+        fprintf(stderr, "Error opening file");
+        exit(-1);
+    }
 }
 
 int main(int argc, char** argv)
 {
+    if (argc < 3)
+    {
+        fprintf(stderr, "Invalid number of command arguments\n");
+        return 0;
+    }
+
+    char filename[50];
+    strcpy(filename, argv[1]);
+    int generations = atoi(argv[2]);
+
     printf("Type the number of your chosen running mode: \n1 = NORMAL MODE \n2 = DEBUG MODE\n");
     int mode = 0;
     scanf("%d", &mode);
@@ -110,33 +170,44 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    printf("Type the desired grid size: 10, 1000, 2000, 3000, 5000\n");
-    int grid_size = 0;
-    scanf("%d", &grid_size);
-
-    if (grid_size != 10 && grid_size != 1000 && grid_size != 2000 && grid_size != 3000 && grid_size != 5000)
-    {
-        printf("Invalid grid size!\n");
-        return 0;   
-    }
-
-    char file_name[20];
-    if (grid_size == 10) strcpy(file_name, "bacteria10.txt");
-    else if (grid_size == 1000) strcpy(file_name, "bacteria1000.txt");
-    else if (grid_size == 2000) strcpy(file_name, "bacteria2000.txt");
-    else if (grid_size == 3000) strcpy(file_name, "bacteria3000.txt");
-    else if (grid_size == 5000) strcpy(file_name, "bacteria5000.txt");
-
     int rows = 0, cols = 0;
-    char** grid = get_grid(file_name, &rows, &cols);
-    print_grid(grid, rows, cols);
+    char** grid = get_grid(filename, &rows, &cols);
+    char** next_grid = allocate_grid(&rows, &cols);
 
-    for (int i = 0; i < rows; i++)
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    for (int i = 0; i < generations; i++)
     {
-        free(grid[i]);
+        if (mode == 2)
+        {
+            printf("====================\nGENERATION %d\n", i+1);
+            print_grid(grid, rows, cols);
+        }
+
+        for (int i = 0; i < rows; i++)
+        {
+            for (int j = 0; j < cols; j++)
+            {
+                update_grid_point(grid, next_grid, i, j, rows, cols);
+            }
+        }
+
+        //swap between grids for memory management efficiency
+        char** temp = grid;
+        grid = next_grid;
+        next_grid = temp;
     }
-    
-    free(grid);
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double time_taken = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+
+    printf("Serial time: %f\n", time_taken);
+
+    write_to_output_file(next_grid, rows, cols, "out_serial.txt");
+
+    free_grid(grid, rows);
+    free_grid(next_grid, rows);
 
     return 0;
 }
