@@ -39,7 +39,7 @@ char** get_grid(char* filename, int* rows, int* cols)
 
     if (fclose(f) != 0)
     {
-        fprintf(stderr, "Error opening file");
+        fprintf(stderr, "Error closing file");
         exit(-1);
     }
 
@@ -143,7 +143,7 @@ void write_to_output_file(char** grid, int rows, int cols, char* filename)
 
     if (fclose(f) != 0)
     {
-        fprintf(stderr, "Error opening file");
+        fprintf(stderr, "Error closing file");
         exit(-1);
     }
 }
@@ -177,11 +177,11 @@ int main(int argc, char** argv)
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
-    for (int i = 0; i < generations; i++)
+    for (int g = 0; g < generations; g++)
     {
         if (mode == 2)
         {
-            printf("====================\nGENERATION %d\n", i+1);
+            printf("====================\nGENERATION %d\n", g + 1);
             print_grid(grid, rows, cols);
         }
 
@@ -204,7 +204,7 @@ int main(int argc, char** argv)
 
     printf("Serial time: %f\n", time_taken);
 
-    write_to_output_file(next_grid, rows, cols, "out.txt");
+    write_to_output_file(next_grid, rows, cols, "f_serial_out.txt");
 
     free_grid(grid, rows);
     free_grid(next_grid, rows);
