@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <mpi.h>
 
 char** allocate_grid(int *rows, int *cols)
 {
@@ -150,25 +151,37 @@ void write_to_output_file(char** grid, int rows, int cols, char* filename)
 
 int main(int argc, char** argv)
 {
-    if (argc < 3)
+    int rank, size;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    if (argc != 3)
     {
-        fprintf(stderr, "Invalid number of command arguments\n");
-        return 0;
+        if (rank == 0)
+        {
+            fprintf(stderr, "Format: exec filename generations_count\n");
+            MPI_Finalize();
+            return 0;
+        }
     }
+    
 
     char filename[50];
     strcpy(filename, argv[1]);
     int generations = atoi(argv[2]);
 
-    printf("Type the number of your chosen running mode: \n1 = NORMAL MODE \n2 = DEBUG MODE\n");
-    int mode = 0;
-    scanf("%d", &mode);
+    // printf("Type the number of your chosen running mode: \n1 = NORMAL MODE \n2 = DEBUG MODE\n");
+    // int mode = 0;
+    // scanf("%d", &mode);
 
-    if (mode != 1 && mode != 2)
-    {
-        printf("Invalid mode number!\n");
-        return 0;
-    }
+    // if (mode != 1 && mode != 2)
+    // {
+    //     printf("Invalid mode number!\n");
+    //     return 0;
+    // }
+
+    int mode = 1;
 
     int rows = 0, cols = 0;
     char** grid = get_grid(filename, &rows, &cols);
@@ -202,12 +215,16 @@ int main(int argc, char** argv)
     clock_gettime(CLOCK_MONOTONIC, &end);
     double time_taken = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
 
-    printf("Serial time: %f\n", time_taken);
-
-    write_to_output_file(next_grid, rows, cols, "out_serial.txt");
+    if (rank == 0)
+    {
+        printf("Serial time: %f\n", time_taken);
+        write_to_output_file(next_grid, rows, cols, "out_parallel.txt");
+    }
 
     free_grid(grid, rows);
     free_grid(next_grid, rows);
+
+    MPI_Finalize();
 
     return 0;
 }
