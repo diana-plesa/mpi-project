@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <mpi.h>
 
 char* get_grid(char* filename, int* rows, int* cols)
@@ -207,8 +206,7 @@ int main(int argc, char** argv)
     MPI_Scatterv(grid, amounts, indexes, MPI_CHAR, &local_grid[cols], //skip top halo row
     local_rows * cols, MPI_CHAR, 0, MPI_COMM_WORLD);
     
-    struct timespec start, end;
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    double start = MPI_Wtime();
 
     for (int g = 0; g < generations; g++)
     {
@@ -252,8 +250,8 @@ int main(int argc, char** argv)
     next_grid, amounts, indexes, MPI_CHAR,
     0, MPI_COMM_WORLD);
 
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    double time_taken = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+    double end = MPI_Wtime();
+    double time_taken = end - start;
 
     if (rank == 0)
     {
