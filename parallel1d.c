@@ -262,6 +262,8 @@ int main(int argc, char** argv)
 
     free(local_grid);
     free(local_next_grid);
+    free(indexes);
+    free(amounts);
     MPI_Finalize();
 
     return 0;
